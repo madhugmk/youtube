@@ -11,7 +11,7 @@ import googleapiclient.http
 import moviepy.editor as mp
 from datetime import datetime, timedelta, timezone
 import subprocess
-pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy yt-dlp
+
 
 # Constants
 DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', "/tmp/downloads")

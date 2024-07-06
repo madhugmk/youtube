@@ -76,7 +76,7 @@ def upload_video(video_file, title, description, tags, category, privacy_status)
     logging.info(f"Video uploaded successfully: {response['id']}")
 
 def main():
-    channel_url = "https://www.youtube.com/c/CHANNEL_NAME"
+    channel_url = "https://www.youtube.com/@BreakingBroadcast"
     video_files = download_new_videos(channel_url)
     for video_file in video_files:
         output_file = os.path.join(DOWNLOAD_PATH, f"processed_{os.path.basename(video_file)}")

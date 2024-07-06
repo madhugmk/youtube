@@ -25,11 +25,15 @@ jobs:
 
     - name: Create client_secrets.json
       run: |
-        echo "${{ secrets.CLIENT_SECRETS }}" > client_secrets.json
+        python -c 'import json, os; client_secrets = os.environ["CLIENT_SECRETS"]; with open("client_secrets.json", "w") as f: json.dump(json.loads(client_secrets), f)'
+      env:
+        CLIENT_SECRETS: ${{ secrets.CLIENT_SECRETS }}
 
     - name: Create youtube_credentials.json
       run: |
-        echo "${{ secrets.YOUTUBE_CREDENTIALS }}" > youtube_credentials.json
+        python -c 'import json, os; youtube_credentials = os.environ["YOUTUBE_CREDENTIALS"]; with open("youtube_credentials.json", "w") as f: json.dump(json.loads(youtube_credentials), f)'
+      env:
+        YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
 
     - name: Run YouTube automation script
       env:

@@ -24,7 +24,3 @@ jobs:
 
       - name: Run YouTube automation script
         run: python main.py
-        env:
-          CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
-          LOGO_PATH: ${{ secrets.LOGO_PATH }}
-          END_VIDEO_PATH: ${{ secrets.END_VIDEO_PATH }}

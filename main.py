@@ -12,7 +12,6 @@ import moviepy.editor as mp
 from datetime import datetime, timedelta, timezone
 import subprocess
 
-
 # Constants
 DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', "/tmp/downloads")
 LOGO_PATH = os.getenv('LOGO_PATH', "logo.png")

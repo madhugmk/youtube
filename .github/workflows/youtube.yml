@@ -25,13 +25,27 @@ jobs:
 
     - name: Create client_secrets.json
       run: |
-        python -c 'import json, os; client_secrets = os.environ["CLIENT_SECRETS"]; with open("client_secrets.json", "w") as f: json.dump(json.loads(client_secrets), f)'
+        python - <<EOF
+        import json
+        import os
+        
+        client_secrets = os.environ["CLIENT_SECRETS"]
+        with open("client_secrets.json", "w") as f:
+            json.dump(json.loads(client_secrets), f)
+        EOF
       env:
         CLIENT_SECRETS: ${{ secrets.CLIENT_SECRETS }}
 
     - name: Create youtube_credentials.json
       run: |
-        python -c 'import json, os; youtube_credentials = os.environ["YOUTUBE_CREDENTIALS"]; with open("youtube_credentials.json", "w") as f: json.dump(json.loads(youtube_credentials), f)'
+        python - <<EOF
+        import json
+        import os
+        
+        youtube_credentials = os.environ["YOUTUBE_CREDENTIALS"]
+        with open("youtube_credentials.json", "w") as f:
+            json.dump(json.loads(youtube_credentials), f)
+        EOF
       env:
         YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
 

@@ -1,4 +1,4 @@
-name: Run YouTube Automation
+name: run-script
 
 on:
   push:
@@ -6,31 +6,34 @@ on:
       - main
 
 jobs:
-  run-script:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy yt-dlp
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy yt-dlp
 
-      - name: Create client_secrets.json
-        run: echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
+    - name: Create client_secrets.json
+      run: |
+        echo "${{ secrets.CLIENT_SECRETS }}" > client_secrets.json
 
-      - name: Create youtube_credentials.json
-        run: echo '${{ secrets.YOUTUBE_CREDENTIALS }}' > youtube_credentials.json || true
+    - name: Create youtube_credentials.json
+      run: |
+        echo "${{ secrets.YOUTUBE_CREDENTIALS }}" > youtube_credentials.json
 
-      - name: Run YouTube automation script
-        env:
-          LOGO_PATH: ${{ secrets.LOGO_PATH }}
-          END_VIDEO_PATH: ${{ secrets.END_VIDEO_PATH }}
-          DOWNLOAD_PATH: /tmp/downloads
-        run: python main.py
+    - name: Run YouTube automation script
+      env:
+        LOGO_PATH: ${{ secrets.LOGO_PATH }}
+        END_VIDEO_PATH: ${{ secrets.END_VIDEO_PATH }}
+        DOWNLOAD_PATH: /tmp/downloads
+      run: python main.py

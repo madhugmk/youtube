@@ -28,6 +28,9 @@ jobs:
       - name: Create youtube_credentials.json
         run: echo "${{ secrets.YOUTUBE_CREDENTIALS }}" > youtube_credentials.json || true
 
+      - name: Debug youtube_credentials.json
+        run: cat youtube_credentials.json
+
       - name: Run YouTube automation script
         run: python main.py
         env:

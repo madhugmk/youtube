@@ -1,115 +1,150 @@
 import os
 import logging
-from datetime import datetime, timedelta
-from pytube import Channel
+import json
+import google.auth
+import google.auth.transport.requests
+import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 import googleapiclient.http
 import moviepy.editor as mp
-from urllib.error import HTTPError
+from datetime import datetime, timedelta, timezone
+import subprocess
 
 # Constants
-DOWNLOAD_PATH = "/tmp"
-LOGO_PATH = "/tmp/logo.png"
-END_VIDEO_PATH = "/tmp/end_video.mp4"
-LAST_CHECK_FILE = "/tmp/last_check.txt"
-CLIENT_SECRETS_FILE = "/tmp/client_secrets.json"
+DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', "/tmp/downloads")
+LOGO_PATH = os.getenv('LOGO_PATH', "logo.png")
+END_VIDEO_PATH = os.getenv('END_VIDEO_PATH', "end_video.mp4")
+CLIENT_SECRETS_FILE = "client_secrets.json"
+CREDENTIALS_FILE = "youtube_credentials.json"
 COMMON_DESCRIPTION = "Your common description here"
+YOUTUBE_API_SERVICE_NAME = "youtube"
+YOUTUBE_API_VERSION = "v3"
+CHANNEL_ID = "UC1NF71EwP41VdjAU1iXdLkw"  # Replace with your actual channel ID
+
+# Ensure the download path exists
+os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(message)s')
 
-def read_last_check():
-    if os.path.exists(LAST_CHECK_FILE):
-        with open(LAST_CHECK_FILE, "r") as file:
-            return datetime.fromisoformat(file.read().strip())
-    return datetime.utcnow() - timedelta(hours=1)
+def get_authenticated_service():
+    credentials = None
+    if os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE, 'r') as f:
+            credentials_info = json.load(f)
+            credentials = google.oauth2.credentials.Credentials.from_authorized_user_info(credentials_info)
 
-def write_last_check():
-    with open(LAST_CHECK_FILE, "w") as file:
-        file.write(datetime.utcnow().isoformat())
+    if not credentials or not credentials.valid:
+        if credentials and credentials.expired and credentials.refresh_token:
+            request = google.auth.transport.requests.Request()
+            credentials.refresh(request)
+        else:
+            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+                CLIENT_SECRETS_FILE, scopes=["https://www.googleapis.com/auth/youtube.force-ssl"]
+            )
+            credentials = flow.run_local_server(port=0)
 
-def download_new_videos(channel_url):
+        with open(CREDENTIALS_FILE, 'w') as f:
+            f.write(credentials.to_json())
+
+    return googleapiclient.discovery.build(
+        YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, credentials=credentials
+    )
+
+def get_recent_videos(youtube, channel_id):
+    request = youtube.search().list(
+        part="snippet",
+        channelId=channel_id,
+        order="date",
+        publishedAfter=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+        maxResults=50
+    )
+    response = request.execute()
+    videos = []
+    for item in response.get("items", []):
+        if item["id"]["kind"] == "youtube#video":
+            videos.append({
+                "video_id": item["id"]["videoId"],
+                "title": item["snippet"]["title"],
+                "description": item["snippet"]["description"],
+                "tags": item["snippet"].get("tags", []),
+                "thumbnail_url": item["snippet"]["thumbnails"]["high"]["url"]
+            })
+    return videos
+
+def download_video(video_id):
     try:
-        last_check = read_last_check()
-        channel = Channel(channel_url)
-        new_videos = [video for video in channel.videos if video.publish_date > last_check]
-        video_files = []
-        video_metadata = []
-        for video in new_videos:
-            logging.info(f"Downloading {video.watch_url}")
-            video_file = video.streams.get_highest_resolution().download(output_path=DOWNLOAD_PATH)
-            video_files.append(video_file)
-            # Fetch title, tags, and thumbnail URL
-            title = video.title
-            tags = video.keywords
-            thumbnail_url = video.thumbnail_url
-            video_metadata.append((title, tags, thumbnail_url))
-        write_last_check()
-        return video_files, video_metadata
-    except HTTPError as e:
-        logging.error(f"HTTP error occurred: {e}")
-        logging.error(f"Failed to download videos from {channel_url}")
-        return [], []
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        return [], []
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        output_path = os.path.join(DOWNLOAD_PATH, f"{video_id}.mp4")
+        subprocess.run(["youtube-dl", "-o", output_path, video_url], check=True)
+        return output_path
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to download video {video_id}: {e}")
+        return None
 
 def add_logo_and_append_video(video_file, output_file):
-    video = mp.VideoFileClip(video_file)
-    logo = mp.ImageClip(LOGO_PATH).set_duration(video.duration).resize(height=50).margin(right=8, top=8, opacity=0).set_pos(("right", "top"))
-    video_with_logo = mp.CompositeVideoClip([video, logo])
-    end_video = mp.VideoFileClip(END_VIDEO_PATH)
-    final_video = mp.concatenate_videoclips([video_with_logo, end_video])
-    final_video.write_videofile(output_file, codec="libx264")
+    try:
+        video = mp.VideoFileClip(video_file)
+        logo = mp.ImageClip(LOGO_PATH).set_duration(video.duration).resize(height=50).margin(right=8, top=8, opacity=0).set_pos(("right", "top"))
+        video_with_logo = mp.CompositeVideoClip([video, logo])
+        end_video = mp.VideoFileClip(END_VIDEO_PATH)
+        final_video = mp.concatenate_videoclips([video_with_logo, end_video])
+        final_video.write_videofile(output_file, codec="libx264")
+        logging.info(f"Processed video file {output_file}.")
+    except Exception as e:
+        logging.error(f"Failed to process video {video_file}: {e}")
 
-def upload_video(video_file, title, description, tags, category, privacy_status):
-    scopes = ["https://www.googleapis.com/auth/youtube.upload"]
-    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes)
-    credentials = flow.run_console()
-    youtube = googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
-    
-    body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": tags,
-            "categoryId": category,
-            "thumbnails": {
-                "default": {
-                    "url": thumbnail_url
+def upload_video(youtube, video_file, title, description, tags, thumbnail_url):
+    try:
+        body = {
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "categoryId": "22",  # Change this to the appropriate category ID
+                "thumbnails": {
+                    "default": {
+                        "url": thumbnail_url
+                    }
                 }
+            },
+            "status": {
+                "privacyStatus": "public"  # Options: "public", "private", "unlisted"
             }
-        },
-        "status": {
-            "privacyStatus": privacy_status
         }
-    }
-    
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=googleapiclient.http.MediaFileUpload(video_file)
-    )
-    
-    response = request.execute()
-    logging.info(f"Video uploaded successfully: {response['id']}")
+        
+        request = youtube.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=googleapiclient.http.MediaFileUpload(video_file)
+        )
+        
+        response = request.execute()
+        logging.info(f"Video uploaded successfully: {response['id']}")
+    except Exception as e:
+        logging.error(f"Failed to upload video {video_file}: {e}")
 
 def main():
-    channel_url = "https://www.youtube.com/channel/UC1NF71EwP41VdjAU1iXdLkw"  # Replace with a valid channel URL
-    logging.info(f"Checking for new videos on channel: {channel_url}")
-    video_files, video_metadata = download_new_videos(channel_url)
-    for video_file, (title, tags, thumbnail_url) in zip(video_files, video_metadata):
+    logging.info(f"Checking for new videos on channel: https://www.youtube.com/channel/{CHANNEL_ID}")
+    youtube = get_authenticated_service()
+    videos = get_recent_videos(youtube, CHANNEL_ID)
+    
+    if not videos:
+        logging.info("No new videos found.")
+        return
+
+    for video in videos:
+        video_file = download_video(video["video_id"])
+        if not video_file:
+            logging.error(f"Failed to download video {video['video_id']}")
+            continue
         output_file = os.path.join(DOWNLOAD_PATH, f"processed_{os.path.basename(video_file)}")
         add_logo_and_append_video(video_file, output_file)
-        
-        # Use the fetched title, tags, and common description
-        description = COMMON_DESCRIPTION
-        category = "22"  # Change this to the appropriate category ID
-        privacy_status = "public"  # Options: "public", "private", "unlisted"
-        
-        upload_video(output_file, title, description, tags, category, privacy_status)
+        upload_video(youtube, output_file, video["title"], video["description"], video["tags"], video["thumbnail_url"])
+
+    logging.info("Script completed successfully.")
     return "Success"
 
 if __name__ == "__main__":

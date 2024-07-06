@@ -1,9 +1,9 @@
-name: YouTube Automation
+name: Run YouTube Automation
 
 on:
-  schedule:
-    - cron: '0 * * * *'  # Runs every hour
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   run-script:
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: '3.8'
 
       - name: Install dependencies
         run: |
@@ -23,17 +23,14 @@ jobs:
           pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy yt-dlp
 
       - name: Create client_secrets.json
-        run: echo "${{ secrets.CLIENT_SECRETS }}" > client_secrets.json
+        run: echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
 
       - name: Create youtube_credentials.json
-        run: echo "${{ secrets.YOUTUBE_CREDENTIALS }}" > youtube_credentials.json || true
-
-      - name: Debug youtube_credentials.json
-        run: cat youtube_credentials.json
+        run: echo '${{ secrets.YOUTUBE_CREDENTIALS }}' > youtube_credentials.json || true
 
       - name: Run YouTube automation script
-        run: python main.py
         env:
           LOGO_PATH: ${{ secrets.LOGO_PATH }}
           END_VIDEO_PATH: ${{ secrets.END_VIDEO_PATH }}
-          DOWNLOAD_PATH: "/tmp/downloads"
+          DOWNLOAD_PATH: /tmp/downloads
+        run: python main.py

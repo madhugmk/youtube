@@ -11,6 +11,7 @@ import googleapiclient.http
 import moviepy.editor as mp
 from datetime import datetime, timedelta, timezone
 import subprocess
+from PIL import Image  # Import Pillow for image processing
 
 # Constants
 DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', "/tmp/downloads")
@@ -87,6 +88,11 @@ def download_video(video_id):
 def add_logo_and_append_video(video_file, output_file):
     try:
         video = mp.VideoFileClip(video_file)
+        # Resize logo using Pillow
+        with Image.open(LOGO_PATH) as logo_img:
+            logo_img = logo_img.resize((int(logo_img.width / 2), int(logo_img.height / 2)), Image.Resampling.LANCZOS)
+            logo_img.save(LOGO_PATH)  # Save the resized logo back to disk if needed
+        
         logo = mp.ImageClip(LOGO_PATH).set_duration(video.duration).resize(height=50).margin(right=8, top=8, opacity=0).set_pos(("right", "top"))
         video_with_logo = mp.CompositeVideoClip([video, logo])
         end_video = mp.VideoFileClip(END_VIDEO_PATH)

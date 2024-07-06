@@ -15,6 +15,7 @@ LOGO_PATH = "/tmp/logo.png"
 END_VIDEO_PATH = "/tmp/end_video.mp4"
 LAST_CHECK_FILE = "/tmp/last_check.txt"
 CLIENT_SECRETS_FILE = "/tmp/client_secrets.json"
+COMMON_DESCRIPTION = "Your common description here"
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(message)s')
@@ -35,19 +36,25 @@ def download_new_videos(channel_url):
         channel = Channel(channel_url)
         new_videos = [video for video in channel.videos if video.publish_date > last_check]
         video_files = []
+        video_metadata = []
         for video in new_videos:
             logging.info(f"Downloading {video.watch_url}")
             video_file = video.streams.get_highest_resolution().download(output_path=DOWNLOAD_PATH)
             video_files.append(video_file)
+            # Fetch title, tags, and thumbnail URL
+            title = video.title
+            tags = video.keywords
+            thumbnail_url = video.thumbnail_url
+            video_metadata.append((title, tags, thumbnail_url))
         write_last_check()
-        return video_files
+        return video_files, video_metadata
     except HTTPError as e:
         logging.error(f"HTTP error occurred: {e}")
         logging.error(f"Failed to download videos from {channel_url}")
-        return []
+        return [], []
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-        return []
+        return [], []
 
 def add_logo_and_append_video(video_file, output_file):
     video = mp.VideoFileClip(video_file)
@@ -68,7 +75,12 @@ def upload_video(video_file, title, description, tags, category, privacy_status)
             "title": title,
             "description": description,
             "tags": tags,
-            "categoryId": category
+            "categoryId": category,
+            "thumbnails": {
+                "default": {
+                    "url": thumbnail_url
+                }
+            }
         },
         "status": {
             "privacyStatus": privacy_status
@@ -87,11 +99,17 @@ def upload_video(video_file, title, description, tags, category, privacy_status)
 def main():
     channel_url = "https://studio.youtube.com/channel/UCTD4XeJX1meLq4DokXuzYZg"  # Replace with a valid channel URL
     logging.info(f"Checking for new videos on channel: {channel_url}")
-    video_files = download_new_videos(channel_url)
-    for video_file in video_files:
+    video_files, video_metadata = download_new_videos(channel_url)
+    for video_file, (title, tags, thumbnail_url) in zip(video_files, video_metadata):
         output_file = os.path.join(DOWNLOAD_PATH, f"processed_{os.path.basename(video_file)}")
         add_logo_and_append_video(video_file, output_file)
-        upload_video(output_file, "Video Title", "Video Description", ["tag1", "tag2"], "22", "public")
+        
+        # Use the fetched title, tags, and common description
+        description = COMMON_DESCRIPTION
+        category = "22"  # Change this to the appropriate category ID
+        privacy_status = "public"  # Options: "public", "private", "unlisted"
+        
+        upload_video(output_file, title, description, tags, category, privacy_status)
     return "Success"
 
 if __name__ == "__main__":

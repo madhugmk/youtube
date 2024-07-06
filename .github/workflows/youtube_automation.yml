@@ -25,6 +25,9 @@ jobs:
       - name: Create client_secrets.json
         run: echo "${{ secrets.CLIENT_SECRETS }}" > client_secrets.json
 
+      - name: Create youtube_credentials.json
+        run: echo "${{ secrets.YOUTUBE_CREDENTIALS }}" > youtube_credentials.json || true
+
       - name: Run YouTube automation script
         run: python main.py
         env:

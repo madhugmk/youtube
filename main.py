@@ -97,7 +97,7 @@ def upload_video(video_file, title, description, tags, category, privacy_status)
     logging.info(f"Video uploaded successfully: {response['id']}")
 
 def main():
-    channel_url = "https://studio.youtube.com/channel/UCTD4XeJX1meLq4DokXuzYZg"  # Replace with a valid channel URL
+    channel_url = "https://studio.youtube.com/channel/UC1NF71EwP41VdjAU1iXdLkw"  # Replace with a valid channel URL
     logging.info(f"Checking for new videos on channel: {channel_url}")
     video_files, video_metadata = download_new_videos(channel_url)
     for video_file, (title, tags, thumbnail_url) in zip(video_files, video_metadata):

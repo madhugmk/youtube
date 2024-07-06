@@ -78,7 +78,7 @@ def download_video(video_id):
     try:
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         output_path = os.path.join(DOWNLOAD_PATH, f"{video_id}.mp4")
-        subprocess.run(["youtube-dl", "-o", output_path, video_url], check=True)
+        subprocess.run(["yt-dlp", "--verbose", "-o", output_path, video_url], check=True)
         return output_path
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to download video {video_id}: {e}")

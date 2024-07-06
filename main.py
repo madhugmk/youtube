@@ -7,6 +7,7 @@ import googleapiclient.discovery
 import googleapiclient.errors
 import googleapiclient.http
 import moviepy.editor as mp
+from urllib.error import HTTPError
 
 # Constants
 DOWNLOAD_PATH = "/tmp"
@@ -29,16 +30,24 @@ def write_last_check():
         file.write(datetime.utcnow().isoformat())
 
 def download_new_videos(channel_url):
-    last_check = read_last_check()
-    channel = Channel(channel_url)
-    new_videos = [video for video in channel.videos if video.publish_date > last_check]
-    video_files = []
-    for video in new_videos:
-        logging.info(f"Downloading {video.watch_url}")
-        video_file = video.streams.get_highest_resolution().download(output_path=DOWNLOAD_PATH)
-        video_files.append(video_file)
-    write_last_check()
-    return video_files
+    try:
+        last_check = read_last_check()
+        channel = Channel(channel_url)
+        new_videos = [video for video in channel.videos if video.publish_date > last_check]
+        video_files = []
+        for video in new_videos:
+            logging.info(f"Downloading {video.watch_url}")
+            video_file = video.streams.get_highest_resolution().download(output_path=DOWNLOAD_PATH)
+            video_files.append(video_file)
+        write_last_check()
+        return video_files
+    except HTTPError as e:
+        logging.error(f"HTTP error occurred: {e}")
+        logging.error(f"Failed to download videos from {channel_url}")
+        return []
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        return []
 
 def add_logo_and_append_video(video_file, output_file):
     video = mp.VideoFileClip(video_file)
@@ -76,7 +85,8 @@ def upload_video(video_file, title, description, tags, category, privacy_status)
     logging.info(f"Video uploaded successfully: {response['id']}")
 
 def main():
-    channel_url = "https://www.youtube.com/@BreakingBroadcast"
+    channel_url = "https://studio.youtube.com/channel/UCTD4XeJX1meLq4DokXuzYZg"  # Replace with a valid channel URL
+    logging.info(f"Checking for new videos on channel: {channel_url}")
     video_files = download_new_videos(channel_url)
     for video_file in video_files:
         output_file = os.path.join(DOWNLOAD_PATH, f"processed_{os.path.basename(video_file)}")

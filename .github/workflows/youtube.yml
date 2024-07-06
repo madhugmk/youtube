@@ -1,0 +1,30 @@
+name: YouTube Automation
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run YouTube automation script
+        run: python main.py
+        env:
+          CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
+          LOGO_PATH: ${{ secrets.LOGO_PATH }}
+          END_VIDEO_PATH: ${{ secrets.END_VIDEO_PATH }}

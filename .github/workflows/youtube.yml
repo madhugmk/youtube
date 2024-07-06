@@ -20,9 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy
-          sudo apt-get update
-          sudo apt-get install -y youtube-dl
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client moviepy yt-dlp
 
       - name: Create client_secrets.json
         run: echo "${{ secrets.CLIENT_SECRETS }}" > client_secrets.json
